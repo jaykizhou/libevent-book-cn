@@ -2,36 +2,30 @@ include::license.txt[]
 
 :language: C
 
-A tiny introduction to asynchronous IO
+异步IO的简单介绍
 ----------------------------------------
 
-Most beginning programmers start with blocking IO calls.
-An IO call is _synchronous_ if, when you call it, it does not return
-until the operation is completed, or until enough time
-has passed that your network stack gives up.  When you call "connect()" on a TCP
-connection, for example, your operating system queues a SYN packet to
-the host on the other side of the TCP connection.  It does not return
-control back to your application until either it has received a SYN ACK
-packet from the opposite host, or until enough time has passed that it
-decides to give up.
+很多编程的初学者从阻塞IO调用开始学习。一个IO调用是 _异步_ 指的是当你
+调用它的时候，并不会像往常一样等到操作完成IO操作或者一段时间后网络协议栈
+放弃之后才会返回。当你在一个TCP连接上调用"connect()"的时候，你的操作
+系统会将SYN包发送给TCP连接另一端的主机。直到操作系统收到一个对方发来的
+SYN ACK包，或者等待一段时间没有收到而放弃之后，控制权才会返回到你的程序。
 
-Here's an example of a really simple client using blocking network
-calls.  It opens a connection to www.google.com, sends it a simple
-HTTP request, and prints the response to stdout.
+这里是一个使用阻塞网络调用的简单客户端示例。它尝试连接到 www.google.com，
+发送一个简单的HTTP请求，然后在stdout上打印服务端的响应信息。
+
 
 //BUILD: SKIP
-.Example: A simple blocking HTTP client
+.Example: 一个简单的阻塞模式HTTP客户端
 [code,C]
 -------
 include::examples_01/01_sync_webclient.c[]
 -------
 
-All of the network calls in the code above are _blocking_: the
-gethostbyname does not return until it has succeeded or failed in
-resolving www.google.com; the connect does not return until it has
-connected; the recv calls do not return until they have received data
-or a close; and the send call does not return until it has at least
-flushed its output to the kernel's write buffers.
+以上代码中所有的网络调用都是 _阻塞_ 的：gethostbyname调用直到其成功执行或者
+解析 www.google.com 失败才会返回；connect调用直到成功建立连接才会返回；recv调用
+直到接收到数据或者连接关闭才会返回；send调用直到它至少把数据拷贝到内核的写缓冲区
+才会返回。
 
 Now, blocking IO is not necessarily evil.  If there's nothing else you
 wanted your program to do in the meantime, blocking IO will work fine
@@ -39,6 +33,11 @@ for you.  But suppose that you need to write a program to handle
 multiple connections at once.  To make our example concrete: suppose
 that you want to read input from two connections, and you don't know
 which connection will get input first.  You can't say
+
+现在，阻塞IO不一定是不好的做法。如果你的程序在等待期间没有其他的事情可做的话，
+阻塞IO还是好的做法。但是假设你需要编写一个需要一次处理多个网络连接的程序的话，
+我们来看一个具体的例子：假设你要从两个连接读取数据，而且你不知道哪一个连接会
+先获得输入。你不能说：
 
 //BUILD: FUNCTIONBODY INC:../example_stubs/sec01.h
 .Bad Example
@@ -59,16 +58,13 @@ while (i_still_want_to_read()) {
     }
 }
 -------
-because if data arrives on fd[2] first, your program won't even try
-reading from fd[2] until the reads from fd[0] and fd[1] have gotten some
-data and finished.
 
-Sometimes people solve this problem with multithreading, or with
-multi-process servers.  One of the simplest ways to do multithreading
-is with a separate process (or thread) to deal with each connection.
-Since each connection has its own process, a blocking IO call that
-waits for one connection won't make any of the other connections'
-processes block.
+因为如果fd[2]先收到数据的话，你的程序不会在完成fd[0]和fd[1]的数据读取之前试图
+读取fd[2]收到的数据。
+
+有时候程序员们使用多线程或者多进程的服务器模型来解决这样的问题。
+最简单的方法就是使用独立的进程（或线程）来处理每一个连接。每个连接被独立的进程
+持有后，一个阻塞的IO调用等待在该连接上时，就不会使得持有其它的连接的进程阻塞了。
 
 Here's another example program.  It is a trivial server that listens
 for TCP connections on port 40713, reads data from its input one line
